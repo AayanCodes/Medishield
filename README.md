@@ -1,11 +1,3 @@
-<img width="1920" height="1080" alt="Screenshot 2026-03-20 225044" src="https://github.com/user-attachments/assets/8ea09e76-1b96-4daf-bc90-2d66b67e2492" />
-
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/48ccb5db-7b1f-4d03-b523-5b1d54177ab3" />
-
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/b98d24be-fb7e-42e2-97e0-fe574ed2c8c3" />
-
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/41e02506-f27d-4fa4-abf8-b54e3982728a" />
-
 # Medishield: Smart anonymous Health Decision System.
 
 This project is an AI-powered web application that helps users get instant first aid guidance using image analysis and symptom-based detection. It also provides a private health check feature where users can analyze sensitive issues anonymously.
@@ -32,15 +24,13 @@ Our Solution provides:
       Analyze sensitive health issues without sharing personal information.
 
 ### Images
+<img width="1920" height="1080" alt="Screenshot 2026-03-20 225044" src="https://github.com/user-attachments/assets/8ea09e76-1b96-4daf-bc90-2d66b67e2492" />
 
-<div style="display: flex;flex-direction: column; grid-gap: 10px;">
-     <div style="display: flex; grid-gap: 10px;">
-        <img src="Screenshot 2026-03-20 225044.png" alt="screenshots" width="49%" style="border: 2px solid lightgreen"/>
-        <img src="Screenshot 2026-03-20 225415.png" alt="screenshots" width="49%" style="border: 2px solid lightgreen"/>
-        <img src="Screenshot 2026-03-20 225439.png" alt="screenshots" width="49%" style="border: 2px solid lightgreen"/>
-        <img src="Screenshot 2026-03-20 225934.png" alt="screenshots" width="49%" style="border: 2px solid lightgreen"/>
-    </div>
-</div>
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/48ccb5db-7b1f-4d03-b523-5b1d54177ab3" />
+
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/b98d24be-fb7e-42e2-97e0-fe574ed2c8c3" />
+
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/41e02506-f27d-4fa4-abf8-b54e3982728a" />
   
 ---
 

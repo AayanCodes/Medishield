@@ -1,0 +1,422 @@
+from flask import Flask, render_template, request, jsonify
+import google.generativeai as genai
+from PIL import Image
+import os
+from dotenv import load_dotenv
+import json
+import re
+
+app = Flask(__name__)
+
+# Load environment variables
+load_dotenv()
+API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Configure Gemini
+genai.configure(api_key=API_KEY)
+
+# Load model
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+@app.route('/care')
+def care():
+    return render_template('carewithPrivacy.html')
+
+
+@app.route('/symptom')
+def symptom():
+    return render_template('symptom.html')
+
+@app.route('/about_us')
+def about_us():
+    return render_template('about_us.html')
+
+@app.route('/offline')
+def offline():
+    return render_template('offline.html')
+
+@app.route('/doctors')
+def doctors():
+    return render_template('doctors.html')
+@app.route('/alt_medi')
+def alt_medi():
+    return render_template('alt_medi.html')
+
+@app.route('/analyze', methods=['POST'])
+def analyze():
+
+    if 'image' not in request.files:
+        return jsonify({"error": "No image uploaded"})
+
+    file = request.files['image']
+
+    if file.filename == "":
+        return jsonify({"error": "No selected image"})
+
+    try:
+
+        image = Image.open(file.stream).convert("RGB")
+
+        prompt = """
+You are a medical first aid assistant.
+
+Analyze the injury in the image.
+
+Return ONLY valid JSON.
+
+{
+"injury": "",
+"risk_level": "",
+"first_aid_steps": [],
+"see_doctor_when": []
+}
+
+Risk level must be exactly one of:
+HOME_CARE
+MONITOR
+DOCTOR_VISIT
+EMERGENCY
+
+Doctor type must be one of:
+BURN SPECIALIST
+MINOR INJURY SPECIALIST
+SKIN INFECTION SPECIALIST
+GENERAL OPD SPECIALIST
+
+
+Keep language simple for normal people.
+"""
+
+        response = model.generate_content([prompt, image])
+
+        result_text = response.text
+
+        # Extract JSON safely
+        match = re.search(r'\{.*\}', result_text, re.S)
+
+        if match:
+            result_json = json.loads(match.group())
+
+            doctor_numbers = {
+        "BURN SPECIALIST": ["Dr. Khan 9876543210"],
+        "MINOR INJURY SPECIALIST": ["Dr. Mohan 9123456780"],
+        "SKIN INFECTION SPECIALIST": ["Dr. Rohini 9988776655"],
+        "GENERAL OPD SPECIALIST": ["Dr. Rohini 9988776655"],
+            }
+
+            doc_type = result_json.get("doctor_type", "MINOR INJURY SPECIALIST")
+
+            result_json["doctor"] = {
+            "type": doc_type,
+            "numbers": doctor_numbers.get(doc_type, [])
+            }
+
+        else:
+            raise Exception("Invalid JSON response")
+
+        return jsonify(result_json)
+
+    except Exception as e:
+
+        print("ERROR:", e)
+
+        return jsonify({
+            "injury": "Unable to analyze image",
+            "risk_level": "MONITOR",
+            "first_aid_steps": ["Upload a clearer image"],
+            "see_doctor_when": []
+        })
+
+@app.route('/analyze_symptom', methods=['POST'])
+def analyze_symptom():
+
+    try:
+
+        data = request.get_json()
+
+        symptoms = data.get("symptoms", [])
+        body_parts = data.get("body_parts", [])
+        duration = data.get("duration", [])
+        age = data.get("age", [])
+
+        print("Symptoms:", symptoms)
+        print("Body Parts:", body_parts)
+        print("Duration:", duration)
+        print("Age:", age)
+
+        if not symptoms and not body_parts:
+            return jsonify({
+                "injury": "No symptoms selected",
+                "risk_level": "MONITOR",
+                "first_aid_steps": ["Please select symptoms"],
+                "see_doctor_when": []
+            })
+
+        prompt = f"""
+
+        You are a medical first aid assistant.
+
+            User injured body part: {body_parts}
+
+            User symptoms: {symptoms}
+
+            injury duration: {duration}
+
+            injured persons age: {age}
+
+            Identify the possible injury and give first aid advice.
+
+            Respond ONLY in JSON format:
+
+            
+            {{
+                "injury": "",
+                "risk_level": "",
+                "first_aid_steps": [],
+                "see_doctor_when": []
+            }}
+
+            Risk level must be EXACTLY one of:
+
+            HOME_CARE
+            MONITOR
+            DOCTOR_VISIT
+            EMERGENCY
+
+            Doctor type must be one of:
+            BURN SPECIALIST
+            MINOR INJURY SPECIALIST
+            SKIN INFECTION SPECIALIST
+            GENERAL OPD SPECIALIST
+
+            Keep advice short and easy to understand.
+            """
+
+        response = model.generate_content(prompt)
+
+        result_text = response.text
+
+        # Clean Gemini formatting
+        cleaned = result_text.replace("```json", "").replace("```", "").strip()
+
+        # Extract JSON safely (handles extra text around JSON)
+        match = re.search(r"\{[\s\S]*\}", cleaned)
+        if not match:
+            raise ValueError("No JSON object found in model response")
+
+        json_text = match.group()
+        print("Gemini response:", json_text)
+
+        try:
+            result_json = json.loads(json_text)
+
+
+            doctor_numbers = {
+        "BURN SPECIALIST": ["Dr. Khan 9876543210"],
+        "MINOR INJURY SPECIALIST": ["Dr. Mohan 9123456780"],
+        "SKIN INFECTION SPECIALIST": ["Dr. Rohini 9988776655"],
+        "GENERAL OPD SPECIALIST": ["Dr. Rohini 9988776655"],
+            }
+
+            doc_type = result_json.get("doctor_type", "MINOR INJURY SPECIALIST")
+
+            result_json["doctor"] = {
+            "type": doc_type,
+            "numbers": doctor_numbers.get(doc_type, [])
+            }
+       
+        except:
+            result_json = {
+                "injury": "Unable to analyze symptoms",
+                "risk_level": "MONITOR",
+                "first_aid_steps": ["Try selecting more symptoms"],
+                "see_doctor_when": []
+            }
+
+        return jsonify(result_json)
+
+    except Exception as e:
+
+        print("ERROR:", e)
+
+        return jsonify({
+            "injury": "Server error",
+            "risk_level": "MONITOR",
+            "first_aid_steps": ["Please try again"],
+            "see_doctor_when": []
+        })
+
+@app.route('/analyze_care', methods=['POST'])
+def analyze_care():
+
+    try:
+
+        image = request.files.get("image")
+
+        gender = json.loads(request.form.get("gender", "[]"))
+        body_area = json.loads(request.form.get("body_area", "[]"))
+        common_symptoms = json.loads(request.form.get("common_symptoms", "[]"))
+        symptom_for_men = json.loads(request.form.get("symptom_for_men", "[]"))
+        symptom_for_women = json.loads(request.form.get("symptom_for_women", "[]"))
+        duration = json.loads(request.form.get("duration", "[]"))
+        age = json.loads(request.form.get("age", "[]"))
+
+        prompt = f"""
+You are a medical first aid assistant.
+
+Gender: {gender}
+body_area: {body_area}
+common_symptoms: {common_symptoms}
+symptomp_for_men: {symptom_for_men}
+symptomp_for_women: {symptom_for_women}
+Duration: {duration}
+Age group: {age}
+
+Identify the possible injury and give first aid advice. in symple words
+
+Return ONLY valid JSON in this format:
+
+{{
+"injury": "",
+"risk_level": "",
+"first_aid_steps": [],
+"see_doctor_when": []
+}}
+
+Risk level must be one of:
+HOME_CARE
+MONITOR
+DOCTOR_VISIT
+EMERGENCY
+
+Doctor type must be one of:
+BURN SPECIALIST
+MINOR INJURY SPECIALIST
+SKIN INFECTION SPECIALIST
+MEN'S PRIVATE HEALTH
+WOMEN'S PRIVATE HEATH
+"""
+
+        # AI call
+        if image:
+            img = Image.open(image)
+            response = model.generate_content([prompt, img])
+        else:
+            response = model.generate_content(prompt)
+
+        raw_text = response.text
+
+        # Debug print
+        print("AI RAW RESPONSE:", raw_text)
+
+        # Clean markdown formatting
+        cleaned = raw_text.replace("```json", "").replace("```", "").strip()
+
+        # Extract JSON safely
+        start = cleaned.find("{")
+        end = cleaned.rfind("}") + 1
+        json_text = cleaned[start:end]
+
+        result = json.loads(json_text)
+
+       
+        doctor_numbers = {
+    "BURN SPECIALIST": ["9876543210"],
+    "MINOR INJURY SPECIALIST": ["9123456780"],
+    "SKIN INFECTION SPECIALIST": ["9988776655"],
+    "MEN'S PRIVATE HEALTH": ["9011111111"],
+    "WOMEN'S PRIVATE HEALTH": ["9022222222"]
+        }
+
+        doc_type = result.get("doctor_type", "MINOR INJURY SPECIALIST")
+
+        result["doctor"] = {
+            "type": doc_type,
+            "numbers": doctor_numbers.get(doc_type, [])
+        }
+
+        return jsonify(result)
+
+    except Exception as e:
+
+        print("ERROR:", e)
+
+        return jsonify({
+            "injury": "Unable to analyze",
+            "risk_level": "MONITOR",
+            "first_aid_steps": ["Try again"],
+            "see_doctor_when": []
+        })
+    
+
+@app.route("/medicine-alternative", methods=["POST"])
+def medicine_alternative():
+    data = request.get_json()
+    med = data.get("medicine")
+
+    prompt = f"""
+A medicine named {med} is not available.
+
+Suggest 3 alternative medicines with similar ingredients.
+
+Return ONLY JSON in this format:
+
+{{
+"alternatives": [
+  {{
+    "name": "",
+    "use": "",
+    "note": ""
+  }},
+  {{
+    "name": "",
+    "use": "",
+    "note": ""
+  }},
+  {{
+    "name": "",
+    "use": "",
+    "note": ""
+  }}
+]
+}}
+
+Rules:
+- Keep answers short
+- No paragraph
+- Only JSON output
+"""
+
+    response = model.generate_content(prompt)
+
+    raw = response.text
+
+    # Clean AI response
+    cleaned = raw.replace("```json", "").replace("```", "").strip()
+
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("No valid JSON object found in model response")
+
+    json_text = cleaned[start:end+1]
+    result = json.loads(json_text)
+
+
+    return jsonify(result)
+
+# =========================
+# Run App
+# =========================
+if __name__ == '__main__':
+    app.run(debug=True)
